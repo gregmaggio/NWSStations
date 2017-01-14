@@ -2,6 +2,7 @@
 
 #include <string>
 #include "UnknownImpl.h"
+#include "ogrsf_frmts.h"
 
 using namespace std;
 
@@ -9,34 +10,19 @@ class CStation : public CUnknownImpl
 {
 private:
 	static unsigned long _instances;
-	string _stationId;
-	string _stationName;
-	string _state;
-	double _latitude;
-	double _longitude;
-	bool _hasRadiosonde;
+	OGRFeature * _feature;
 
 public:
 
-	CStation(void) :
-		_stationId("\0"),
-		_stationName("\0"),
-		_state("\0"),
-		_latitude(0),
-		_longitude(0),
-		_hasRadiosonde(false)
+	CStation(OGRFeature * feature) :
+		_feature(feature)
 	{
 		InterlockedIncrement(&_instances);
 	}
 
 	virtual ~CStation(void)
 	{
-		_stationId = "\0";
-		_stationName = "\0";
-		_state = "\0";
-		_latitude = 0;
-		_longitude = 0;
-		_hasRadiosonde = false;
+		_feature = NULL;
 		InterlockedDecrement(&_instances);
 	}
 
@@ -45,64 +31,129 @@ public:
 		return _instances;
 	}
 
-	string& getStationId()
+	const char * getStationId()
 	{
-		return _stationId;
+		return _feature->GetFieldAsString("station_id");
 	}
 
-	string& getStationName()
+	const char * getStationName()
 	{
-		return _stationName;
+		return _feature->GetFieldAsString("name");
 	}
 
-	string& getState()
+	const char * getStreetNumber()
 	{
-		return _state;
+		return _feature->GetFieldAsString("street_no");
 	}
 	
+	const char * getStreetName()
+	{
+		return _feature->GetFieldAsString("street");
+	}
+
+	const char * getCity()
+	{
+		return _feature->GetFieldAsString("city");
+	}
+
+	const char * getState()
+	{
+		return _feature->GetFieldAsString("state");
+	}
+	
+	const char * getZip()
+	{
+		return _feature->GetFieldAsString("zip");
+	}
+
+	const char * getCountryCode()
+	{
+		return _feature->GetFieldAsString("country_cd");
+	}
+
+	const char * getCountryName()
+	{
+		return _feature->GetFieldAsString("country");
+	}
+
 	double getLatitude()
 	{
-		return _latitude;
+		return _feature->GetFieldAsDouble("latitude");
 	}
 
 	double getLongitude()
 	{
-		return _longitude;
+		return _feature->GetFieldAsDouble("longitude");
 	}
 
 	bool hasRadisonde()
 	{
-		return _hasRadiosonde;
+		return (_stricmp(_feature->GetFieldAsString("has_rad"), "Y") == 0) ? true : false;
 	}
 
-	void setStationId(string& newVal)
+	OGRFeature * getFeature()
 	{
-		_stationId = newVal;
+		return _feature;
 	}
 
-	void setStationName(string& newVal)
+	void setStationId(const char * newVal)
 	{
-		_stationName = newVal;
+		_feature->SetField("station_id", newVal);
 	}
 
-	void setState(string& newVal)
+	void setStationName(const char * newVal)
 	{
-		_state = newVal;
+		_feature->SetField("name", newVal);
+	}
+
+	void setStreetNumber(const char * newVal)
+	{
+		_feature->SetField("street_no", newVal);
 	}
 	
+	void setStreetName(const char * newVal)
+	{
+		_feature->SetField("street", newVal);
+	}
+
+	void setCity(const char * newVal)
+	{
+		_feature->SetField("city", newVal);
+	}
+
+	void setState(const char * newVal)
+	{
+		_feature->SetField("state", newVal);
+	}
+	
+	void setZip(const char * newVal)
+	{
+		_feature->SetField("zip", newVal);
+	}
+
+	void setCountryCode(const char * newVal)
+	{
+		_feature->SetField("country_cd", newVal);
+	}
+
+	void setCountryName(const char * newVal)
+	{
+		_feature->SetField("country", newVal);
+	}
+
 	void setLatitude(double newVal)
 	{
-		_latitude = newVal;
+		_feature->SetField("latitude", newVal);
 	}
 
 	void setLongitude(double newVal)
 	{
-		_longitude = newVal;
+		_feature->SetField("longitude", newVal);
 	}
 
 	void setHasRadisonde(bool newVal)
 	{
-		_hasRadiosonde = newVal;
+		_feature->SetField("has_rad", (newVal ? "Y" : "N"));
 	}
 };
 

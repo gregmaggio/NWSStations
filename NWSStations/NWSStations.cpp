@@ -6,112 +6,131 @@
 #include <fstream>
 #include <string>
 #include <wchar.h>
+#include "States.h"
 #include "Stations.h"
+#include "json.h"
+#include <sstream>
 
 using namespace std;
 
 #include "ogrsf_frmts.h"
 
+#import <msxml6.dll>
+
+void loadFromXml(string& fileName, CStations * stations, CStates * states)
+{
+	MSXML2::IXMLDOMDocument2Ptr document = NULL;
+	document.CreateInstance(__uuidof(MSXML2::DOMDocument60));
+	document->load(_variant_t(_bstr_t(fileName.c_str())));
+	MSXML2::IXMLDOMNodeListPtr nodes = document->selectNodes(_bstr_t("//wx_station_index/station"));
+	for (long ii = 0; ii < nodes->length; ii++)
+	{
+		MSXML2::IXMLDOMNodePtr node = nodes->Getitem(ii);
+		string stationId = "\0";
+		string stationName = "\0";
+		string stateCode = "\0";
+		double latitude = 0.0;
+		double longitude = 0.0;
+		if (node->hasChildNodes() == VARIANT_TRUE)
+		{
+			MSXML2::IXMLDOMNodeListPtr childNodes = node->childNodes;
+			for (long jj = 0; jj < childNodes->length; jj++)
+			{
+				MSXML2::IXMLDOMNodePtr child = childNodes->Getitem(jj);
+				if (_wcsicmp(child->nodeName, L"station_id") == 0)
+				{
+					stationId = (char *)child->Gettext();
+				}
+				else if (_wcsicmp(child->nodeName, L"station_name") == 0)
+				{
+					stationName = (char *)child->Gettext();
+				}
+				else if (_wcsicmp(child->nodeName, L"state") == 0)
+				{
+					stateCode = (char *)child->Gettext();
+				}
+				else if (_wcsicmp(child->nodeName, L"latitude") == 0)
+				{
+					latitude = stod((char *)child->Gettext());
+				}
+				else if (_wcsicmp(child->nodeName, L"longitude") == 0)
+				{
+					longitude = stod((char *)child->Gettext());
+				}
+			}
+		}
+		CStation * station = stations->find(stationId);
+		if (!station)
+		{
+			CState * state = states->find(stateCode);
+			if (state)
+			{
+				OGRPoint point(longitude, latitude);
+				OGRFeature * feature = feature = OGRFeature::CreateFeature(stations->getFeatureDefn());
+				feature->SetField("station_id", stationId.c_str());
+				feature->SetField("name", stationName.c_str());
+				feature->SetField("street_no", "\0");
+				feature->SetField("street", "\0");
+				feature->SetField("city", "\0");
+				feature->SetField("state", stateCode.c_str());
+				feature->SetField("zip", "\0");
+				feature->SetField("country_cd", "\0");
+				feature->SetField("country", "\0");
+				feature->SetField("latitude", latitude);
+				feature->SetField("longitude", longitude);
+				feature->SetField("has_rad", "N");
+				feature->SetGeometry(&point);
+				stations->getLayer()->CreateFeature(feature);
+				long fid = feature->GetFID();
+				OGRFeature::DestroyFeature(feature);
+				station = new CStation(stations->getLayer()->GetFeature(fid));
+				if (!stations->add(station))
+				{
+					station->Release();
+				}
+			}
+		}
+	}
+}
+
 int main(int argc, char** argv)
 {
-	OGRSFDriver * shapeFileDriver = NULL;
-	OGRDataSource * output = NULL;
-	OGRFeature * feature = NULL;
 	CStations * stations = NULL;
+	CStates * states = NULL;
 	try
 	{
 		CoInitialize(NULL);
 
-		string inputFileName = "C:\\Data\\NWS\\stations.xml";
-		string outputFileName = "C:\\Data\\NWS\\stations.shp";
-
+		string xmlFileName = "C:\\Data\\NWS\\stations.xml";
+		string shapeFileName = "C:\\Data\\NWS\\stations.shp";
+		string stateFileName = "C:\\Data\\Radiosonde\\igra2-us-states.txt";
 		for (int ii = 0; ii < argc; ) {
 			char* arg = argv[ii++];
-			if (_stricmp(arg, "--inputFileName") == 0) {
+			if (_stricmp(arg, "--xmlFileName") == 0) {
 				if (ii < argc) {
-					inputFileName = argv[ii++];
+					xmlFileName = argv[ii++];
 				}
-			} else if (_stricmp(arg, "--outputFileName") == 0) {
+			} else if (_stricmp(arg, "--shapeFileName") == 0) {
 				if (ii < argc) {
-					outputFileName = argv[ii++];
+					shapeFileName = argv[ii++];
+				}
+			} else if (_stricmp(arg, "--stateFileName") == 0) {
+				if (ii < argc) {
+					stateFileName = argv[ii++];
 				}
 			}
 		}
-
-		stations = new CStations();
-		stations->load(inputFileName);
-		stations->checkForRadisondes();
 
 		OGRRegisterAll();
 		
-		OGRSFDriverRegistrar * registrar = OGRSFDriverRegistrar::GetRegistrar();
-		int driverCount = registrar->GetDriverCount();
-		cout << "driverCount: " << driverCount << endl;
+		stations = new CStations(shapeFileName);
+		states = new CStates(stateFileName);
 
-		for (int ii = 0; ii < driverCount; ii++)
-		{
-			OGRSFDriver * driver = registrar->GetDriver(ii);
-			cout << "driver: " << driver->GetName() << endl;
-			if (_stricmp(driver->GetName(), "ESRI Shapefile") == 0)
-			{
-				shapeFileDriver = driver;
-				break;
-			}
-		}
+		loadFromXml(xmlFileName, stations, states);
 
-		output = shapeFileDriver->CreateDataSource(outputFileName.c_str());
-		OGRLayer * layer = output->CreateLayer("stations", NULL, wkbPoint, NULL);
-		OGRFieldDefn stationIdField("station_id", OFTString);
-		stationIdField.SetWidth(55);
-		if (layer->CreateField(&stationIdField) != OGRERR_NONE)
-		{
-			throw exception("Error creating station_id field.");
-		}
-		OGRFieldDefn stationNameField("station_name", OFTString);
-		stationNameField.SetWidth(55);
-		if (layer->CreateField(&stationNameField) != OGRERR_NONE)
-		{
-			throw exception("Error creating station_name field.");
-		}
-		OGRFieldDefn stateField("state", OFTString);
-		stateField.SetWidth(5);
-		if (layer->CreateField(&stateField) != OGRERR_NONE)
-		{
-			throw exception("Error creating state field.");
-		}
-		OGRFieldDefn latitudeField("latitude", OFTReal);
-		if (layer->CreateField(&latitudeField) != OGRERR_NONE)
-		{
-			throw exception("Error creating latitude field.");
-		}
-		OGRFieldDefn longitudeField("longitude", OFTReal);
-		if (layer->CreateField(&longitudeField) != OGRERR_NONE)
-		{
-			throw exception("Error creating longitude field.");
-		}
-		OGRFieldDefn hasRadisondeField("has_rad", OFTString);
-		if (layer->CreateField(&hasRadisondeField) != OGRERR_NONE)
-		{
-			throw exception("Error creating has_rad field.");
-		}
-		for (long ii = 0; ii < stations->getLength(); ii++)
-		{
-			CStation * station = stations->getItem(ii);
-			OGRFeatureDefn * featureDefn = layer->GetLayerDefn();
-			OGRPoint point(station->getLongitude(), station->getLatitude());
-			feature = OGRFeature::CreateFeature(featureDefn);
-			feature->SetField("station_id", station->getStationId().c_str());
-			feature->SetField("station_name", station->getStationName().c_str());
-			feature->SetField("state", station->getState().c_str());
-			feature->SetField("latitude", station->getLatitude());
-			feature->SetField("longitude", station->getLongitude());
-			feature->SetField("has_rad", (station->hasRadisonde() ? "Y" : "N"));
-			feature->SetGeometry(&point);
-			layer->CreateFeature(feature);
-			OGRFeature::DestroyFeature(feature);
-			feature = NULL;
-		}
-		output->SyncToDisk();
+		stations->reverseGeocodeAddress();
+		stations->checkForRadisondes();
+		stations->save();
 	}
 	catch (exception& ex)
 	{
@@ -121,17 +140,13 @@ int main(int argc, char** argv)
 	{
 		cout << "Unknown Exception!" << endl;
 	}
-	if (feature)
-	{
-		OGRFeature::DestroyFeature(feature);
-	}
-	if (output)
-	{
-		output->Release();
-	}
 	if (stations)
 	{
 		stations->Release();
+	}
+	if (states)
+	{
+		states->Release();
 	}
 
 	CoUninitialize();
@@ -140,6 +155,8 @@ int main(int argc, char** argv)
 
 	_ASSERT(CStations::getInstances() == 0);
 	_ASSERT(CStation::getInstances() == 0);
+	_ASSERT(CStates::getInstances() == 0);
+	_ASSERT(CState::getInstances() == 0);
 
 	return 0;
 }
