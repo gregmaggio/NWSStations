@@ -125,12 +125,19 @@ OGRDataSource * CStations::createDataSource(string& fileName)
 		dataSource->Release();
 		throw exception("Error creating city field.");
 	}
-	OGRFieldDefn stateField("state", OFTString);
-	stateField.SetWidth(5);
-	if (layer->CreateField(&stateField) != OGRERR_NONE)
+	OGRFieldDefn stateCodeField("state_cd", OFTString);
+	stateCodeField.SetWidth(5);
+	if (layer->CreateField(&stateCodeField) != OGRERR_NONE)
 	{
 		dataSource->Release();
-		throw exception("Error creating state field.");
+		throw exception("Error creating state_cd field.");
+	}
+	OGRFieldDefn stateNameField("state_nm", OFTString);
+	stateNameField.SetWidth(155);
+	if (layer->CreateField(&stateNameField) != OGRERR_NONE)
+	{
+		dataSource->Release();
+		throw exception("Error creating state_nm field.");
 	}
 	OGRFieldDefn zipField("zip", OFTString);
 	zipField.SetWidth(15);
@@ -280,6 +287,8 @@ void CStations::reverseGeocodeAddress(long start, long end)
 				string streetNumber = "\0";
 				string streetName = "\0";
 				string city = "\0";
+				string stateCode = "\0";
+				string stateName = "\0";
 				string zip = "\0";
 				string countryName = "\0";
 				string countryCode = "\0";
@@ -315,6 +324,12 @@ void CStations::reverseGeocodeAddress(long start, long end)
 							zip = longName.asCString();
 							break;
 						}
+						else if (_stricmp("administrative_area_level_1", type.asCString()) == 0)
+						{
+							stateName = longName.asCString();
+							stateCode = shortName.asCString();
+							break;
+						}
 						else if (_stricmp("country", type.asCString()) == 0)
 						{
 							countryName = longName.asCString();
@@ -326,12 +341,16 @@ void CStations::reverseGeocodeAddress(long start, long end)
 				cout << "streetNumber: " << streetNumber << endl;
 				cout << "streetName: " << streetName << endl;
 				cout << "city: " << city << endl;
+				cout << "stateName: " << stateName << endl;
+				cout << "stateCode: " << stateCode << endl;
 				cout << "zip: " << zip << endl;
-				cout << "countryName: " << zip << endl;
-				cout << "countryCode: " << zip << endl;
+				cout << "countryName: " << countryName << endl;
+				cout << "countryCode: " << countryCode << endl;
 				station->setStreetNumber(streetNumber.c_str());
 				station->setStreetName(streetName.c_str());
 				station->setCity(city.c_str());
+				station->setStateCode(stateCode.c_str());
+				station->setStateName(stateName.c_str());
 				station->setZip(zip.c_str());
 				station->setCountryCode(countryCode.c_str());
 				station->setCountryName(countryName.c_str());

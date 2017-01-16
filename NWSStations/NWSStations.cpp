@@ -72,7 +72,8 @@ void loadFromXml(string& fileName, CStations * stations, CStates * states)
 				feature->SetField("street_no", "\0");
 				feature->SetField("street", "\0");
 				feature->SetField("city", "\0");
-				feature->SetField("state", stateCode.c_str());
+				feature->SetField("state_cd", state->getCode());
+				feature->SetField("state_nm", state->getName());
 				feature->SetField("zip", "\0");
 				feature->SetField("country_cd", "\0");
 				feature->SetField("country", "\0");
@@ -101,9 +102,9 @@ int main(int argc, char** argv)
 	{
 		CoInitialize(NULL);
 
-		string xmlFileName = "C:\\Data\\NWS\\stations.xml";
-		string shapeFileName = "C:\\Data\\NWS\\stations.shp";
-		string stateFileName = "C:\\Data\\Radiosonde\\igra2-us-states.txt";
+		string xmlFileName = "C:\\Dev\\Applications\\NWSStations\\NWSStations\\data\\stations.xml";
+		string shapeFileName = "C:\\Dev\\Applications\\NWSStations\\NWSStations\\data\\stations.shp";
+		string stateFileName = "C:\\Dev\\Applications\\NWSStations\\NWSStations\\data\\igra2-us-states.txt";
 		for (int ii = 0; ii < argc; ) {
 			char* arg = argv[ii++];
 			if (_stricmp(arg, "--xmlFileName") == 0) {

@@ -56,11 +56,16 @@ public:
 		return _feature->GetFieldAsString("city");
 	}
 
-	const char * getState()
+	const char * getStateCode()
 	{
-		return _feature->GetFieldAsString("state");
+		return _feature->GetFieldAsString("state_cd");
 	}
 	
+	const char * getStateName()
+	{
+		return _feature->GetFieldAsString("state_nm");
+	}
+
 	const char * getZip()
 	{
 		return _feature->GetFieldAsString("zip");
@@ -121,9 +126,14 @@ public:
 		_feature->SetField("city", newVal);
 	}
 
-	void setState(const char * newVal)
+	void setStateCode(const char * newVal)
 	{
-		_feature->SetField("state", newVal);
+		_feature->SetField("state_cd", newVal);
+	}
+	
+	void setStateName(const char * newVal)
+	{
+		_feature->SetField("state_nm", newVal);
 	}
 	
 	void setZip(const char * newVal)
